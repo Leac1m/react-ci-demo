@@ -1,0 +1,35 @@
+
+# dapp-workflow-version: 1
+
+name: dApp Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        required: true
+      environment:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: npm ci && npm run build
+
+      - run: zip -r build.zip dist/
+
+      - name: Upload
+        run: |
+          curl -X POST https://api.your-backend.com/api/builds/upload \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN" \
+            -F "build_id=${{ inputs.build_id }}" \
+            -F "artifact=@build.zip"
