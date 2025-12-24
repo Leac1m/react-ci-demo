@@ -47,6 +47,7 @@ jobs:
         run: |
           if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
             corepack enable
+            corepack prepare pnpm@latest --activate
             pnpm install --frozen-lockfile
           elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
             corepack enable
