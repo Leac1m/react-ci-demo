@@ -37,26 +37,21 @@ jobs:
             exit 1
           fi
       
-      - name: Setup pnpm
-          uses: pnpm/action-setup@v3
-          with:
-            version: 9
-            run_install: false
         
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: ${{ steps.pm.outputs.manager }}
+      - run: corepack enable
+
 
       - name: Install dependencies
         run: |
           if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
-            corepack enable
             corepack prepare pnpm@latest --activate
             pnpm install --frozen-lockfile
           elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
-            corepack enable
             yarn install --frozen-lockfile
           else
             npm ci
