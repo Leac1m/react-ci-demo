@@ -23,6 +23,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Detect package manager
         id: pm
         run: |
@@ -33,23 +41,19 @@ jobs:
           elif [ -f package-lock.json ]; then
             echo "manager=npm" >> $GITHUB_OUTPUT
           else
-            echo "No lockfile found" >&2
+            echo "::error::No lockfile found"
             exit 1
           fi
-      
-        
-      - name: Setup Node
+
+      - name: Setup dependency cache
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: ${{ steps.pm.outputs.manager }}
-      - run: corepack enable
-
 
       - name: Install dependencies
         run: |
           if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
-            corepack prepare pnpm@latest --activate
             pnpm install --frozen-lockfile
           elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
             yarn install --frozen-lockfile
