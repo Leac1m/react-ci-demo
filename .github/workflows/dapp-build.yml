@@ -83,4 +83,4 @@ jobs:
           curl -X POST ${{ inputs.upload_url }} \
             -H "Authorization: Bearer ${{ inputs.upload_token }}" \
             -F "build_id=${{ inputs.build_id }}" \
-            -F "artifact=@build.zip"
+            -F "file=@build.zip"
