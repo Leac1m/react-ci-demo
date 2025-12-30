@@ -12,7 +12,8 @@ on:
         required: true
       upload_url:
         required: true
-      upload_token: true
+      upload_token:
+        required: true
 
 permissions:
   contents: read
