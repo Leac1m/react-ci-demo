@@ -10,6 +10,9 @@ on:
         required: true
       environment:
         required: true
+      upload_url:
+        required: true
+      upload_token: true
 
 permissions:
   contents: read
@@ -76,7 +79,7 @@ jobs:
 
       - name: Upload
         run: |
-          curl -X POST https://api.your-backend.com/api/builds/upload \
-            -H "Authorization: Bearer $ACTIONS_ID_TOKEN" \
+          curl -X POST ${{ inputs.upload_url }} \
+            -H "Authorization: Bearer ${{ inputs.upload_token }} \
             -F "build_id=${{ inputs.build_id }}" \
             -F "artifact=@build.zip"
