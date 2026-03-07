@@ -1,0 +1,106 @@
+name: Build and Upload React App
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to build (defaults to main)"
+        required: false
+        default: "main"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'main' }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Detect package manager
+        id: pm
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            echo "manager=pnpm" >> "$GITHUB_OUTPUT"
+          elif [ -f yarn.lock ]; then
+            echo "manager=yarn" >> "$GITHUB_OUTPUT"
+          elif [ -f package-lock.json ]; then
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::No lockfile found"
+            exit 1
+          fi
+
+      - name: Setup dependency cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: ${{ steps.pm.outputs.manager }}
+
+      - name: Install Dependencies
+        run: |
+          if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm install --frozen-lockfile
+          elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
+            yarn install --frozen-lockfile
+          else
+            npm ci
+          fi
+
+      - name: Build App
+        run: |
+          if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm run build
+          elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
+            yarn build
+          else
+            npm run build
+          fi
+
+      - name: Detect build output
+        run: |
+          if [ -d "dist" ]; then
+            echo "BUILD_DIR=dist" >> "$GITHUB_ENV"
+          elif [ -d "build" ]; then
+            echo "BUILD_DIR=build" >> "$GITHUB_ENV"
+          else
+            echo "::error::Neither dist/ nor build/ directory found"
+            exit 1
+          fi
+
+      - name: Archive Build Output
+        run: |
+          tar -czf build.tar.gz "$BUILD_DIR"
+          echo "Archive created: $(ls -lh build.tar.gz | awk '{print $5}')"
+
+      - name: Upload Build to Platform
+        run: |
+          RESPONSE=$(curl -X POST "${{ secrets.DEPLOY_BACKEND_URL }}/deploy/upload" \
+            -H "Authorization: Bearer ${{ secrets.DEPLOY_SECRET }}" \
+            -F "artifact=@build.tar.gz" \
+            -F "repo=${{ github.repository }}" \
+            -F "commit=${{ github.sha }}" \
+            -w "\n%{http_code}" \
+            -s)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "Upload response code: $HTTP_CODE"
+          echo "Response body: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "ERROR: Upload failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "SUCCESS: Deployment upload complete"
